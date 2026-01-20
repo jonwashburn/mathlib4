@@ -6,6 +6,8 @@ Authors: Matteo Cipollina, Jonathan Washburn
 
 import Mathlib.Analysis.Real.Pi.Bounds
 import Mathlib.Analysis.SpecialFunctions.Gamma.BohrMollerup
+import Mathlib.Analysis.Complex.RemovableSingularity
+import Mathlib.Analysis.SpecialFunctions.Gamma.Deligne
 
 open Real Set MeasureTheory Filter Asymptotics
 open scoped Real Topology
@@ -504,6 +506,235 @@ lemma norm_Gamma_le_six_quarter_strip {w : ℂ}
     _ = 4 + Real.sqrt Real.pi := by norm_num
     _ ≤ 4 + 2 := by linarith
     _ = 6 := by ring
+
+open Complex Real Set Metric
+
+/-! ### Analyticity of `Γ_ℝ` on the right half-plane -/
+
+/-- `Γ_ℝ` is complex differentiable on the open half-plane `{s | 0 < re s}`. -/
+lemma differentiableOn_halfplane :
+    DifferentiableOn ℂ Gammaℝ {s : ℂ | 0 < s.re} := by
+  intro s hs
+  -- Factorization: Γ_ℝ(s) = Γ_ℝ(s') * ∏(s-k) where s' is in (0,1]
+  have h_cpow : DifferentiableAt ℂ (fun z : ℂ => (π : ℂ) ^ (-z / 2)) s := by
+    refine ((differentiableAt_id.neg.div_const (2 : ℂ)).const_cpow ?_)
+    exact Or.inl (ofReal_ne_zero.mpr pi_ne_zero)
+  have h_gamma : DifferentiableAt ℂ (fun z : ℂ => Gamma (z / 2)) s := by
+    have hnot : ∀ m : ℕ, s / 2 ≠ -m := by
+      intro m hsm
+      have hre := congrArg Complex.re hsm
+      have hdiv : s.re / 2 = -(m : ℝ) := by
+        simpa [div_ofNat_re, Complex.ofReal_intCast] using hre
+      have hsre_eq : s.re = -(2 * (m : ℝ)) := by
+        have h' := congrArg (fun x : ℝ => x * 2) hdiv
+        have hleft : (s.re / 2) * 2 = s.re := by
+          have : s.re * (2 : ℝ) / 2 = s.re := by simp
+          simp
+        simpa [hleft, mul_comm, neg_mul] using h'
+      have hle : s.re ≤ 0 := by
+        have : 0 ≤ (2 : ℝ) * (m : ℝ) := by positivity
+        simp [hsre_eq]
+      exact (not_le.mpr hs) hle
+    have hg : DifferentiableAt ℂ (fun z : ℂ => z / 2) s :=
+      (differentiableAt_id.div_const (2 : ℂ))
+    exact (differentiableAt_Gamma (s := s / 2) hnot).comp s hg
+  simpa [Gammaℝ, Gammaℝ_def] using (h_cpow.mul h_gamma).differentiableWithinAt
+
+/-! ### A Cauchy–derivative bound on a circle (exact, no placeholders)
+
+We derive the standard Cauchy inequality for the derivative at a center `s` from the
+Cauchy integral formula for the derivative, and a uniform bound on `‖Gammaℝ‖` along a circle. -/
+
+/-- If `0 < r`, `closedBall s r ⊆ {z | 0 < re z}`, and `‖Gammaℝ z‖ ≤ M` for all `z` on the circle
+`sphere s r`, then `‖deriv Gammaℝ s‖ ≤ r⁻¹ * M`. -/
+theorem deriv_bound_on_circle
+    {s : ℂ} {r M : ℝ}
+    (hr : 0 < r)
+    (hBall : closedBall s r ⊆ {z : ℂ | 0 < z.re})
+    (hM : ∀ z ∈ sphere s r, ‖Gammaℝ z‖ ≤ M) :
+    ‖deriv Gammaℝ s‖ ≤ r⁻¹ * M := by
+  have hUopen : IsOpen {z : ℂ | 0 < z.re} :=
+    isOpen_lt continuous_const Complex.continuous_re
+  have hUdiff : DifferentiableOn ℂ Gammaℝ {z : ℂ | 0 < z.re} := differentiableOn_halfplane
+  have hsub : closedBall s r ⊆ {z : ℂ | 0 < z.re} := hBall
+  have hs_ball : s ∈ ball s r := by
+    simp [mem_ball, dist_self, hr]
+  have hCauchy :
+      ((2 * π * I : ℂ)⁻¹ • ∮ z in C(s, r), ((z - s) ^ 2)⁻¹ • Gammaℝ z)
+        = deriv Gammaℝ s := by
+    simpa using
+      (two_pi_I_inv_smul_circleIntegral_sub_sq_inv_smul_of_differentiable
+        (E := ℂ) hUopen (c := s) (w₀ := s) (R := r) (hc := hsub)
+        (hf := hUdiff) (hw₀ := by simpa [mem_ball, dist_self] using hr))
+  have hker : ∀ z ∈ sphere s r, ‖((z - s) ^ 2)⁻¹ • Gammaℝ z‖ ≤ (r ^ 2)⁻¹ * M := by
+    intro z hz
+    have hzR : ‖z - s‖ = r := by simpa [dist_eq_norm] using hz
+    have : ‖(z - s) ^ 2‖ = ‖z - s‖ ^ 2 := by simp [norm_pow]
+    have : ‖(z - s) ^ 2‖ = r ^ 2 := by simp [hzR]
+    calc
+      ‖((z - s) ^ 2)⁻¹ • Gammaℝ z‖
+          = ‖(z - s) ^ 2‖⁻¹ * ‖Gammaℝ z‖ := by simp [norm_inv]
+      _ ≤ (r ^ 2)⁻¹ * M := by
+        have hHM : ‖Gammaℝ z‖ ≤ M := hM z hz
+        have hnonneg : 0 ≤ ‖(z - s) ^ 2‖⁻¹ := by
+          exact inv_nonneg.mpr (norm_nonneg _)
+        have hnormpow : ‖(z - s) ^ 2‖ = ‖z - s‖ ^ 2 := by simp [norm_pow]
+        have hnorm : ‖(z - s) ^ 2‖ = r ^ 2 := by simp [hzR]
+        have hinv : ‖(z - s) ^ 2‖⁻¹ = (r ^ 2)⁻¹ := by simp [hnorm]
+        have hmul : ‖(z - s) ^ 2‖⁻¹ * ‖Gammaℝ z‖ ≤ ‖(z - s) ^ 2‖⁻¹ * M :=
+          mul_le_mul_of_nonneg_left hHM hnonneg
+        simp_rw [hinv]; aesop
+  have hbound :
+      ‖(2 * π * I : ℂ)⁻¹ • ∮ z in C(s, r), ((z - s) ^ 2)⁻¹ • Gammaℝ z‖
+        ≤ r * ((r ^ 2)⁻¹ * M) :=
+    circleIntegral.norm_two_pi_i_inv_smul_integral_le_of_norm_le_const
+      (c := s) (R := r) (hR := hr.le) (hf := hker)
+  have hbound' : ‖deriv Gammaℝ s‖ ≤ r * ((r ^ 2)⁻¹ * M) :=
+    calc
+      ‖deriv Gammaℝ s‖
+          = ‖(2 * π * I : ℂ)⁻¹ • ∮ z in C(s, r), ((z - s) ^ 2)⁻¹ • Gammaℝ z‖ := by
+            simp_rw [hCauchy]
+      _ ≤ r * ((r ^ 2)⁻¹ * M) := hbound
+  have hr0 : (r : ℝ) ≠ 0 := ne_of_gt hr
+  have hrr : r * ((r ^ 2)⁻¹ * M) = M * r⁻¹ := by
+    calc
+      r * ((r ^ 2)⁻¹ * M) = (r * (r ^ 2)⁻¹) * M := by
+        simp [mul_comm, mul_left_comm]
+      _ = (r / r^2) * M := by simp [div_eq_mul_inv]
+      _ = (1 / r) * M := by
+        have : r / r^2 = 1 / r := by
+          calc
+            r / r^2 = r / (r * r) := by simp [pow_two]
+            _ = (r / r) / r := by simp_rw [div_mul_eq_div_div]
+            _ = 1 / r := by simp [hr0]
+        simp [this]
+      _ = M * r⁻¹ := by simp [one_div, mul_comm]
+  have : ‖deriv Gammaℝ s‖ ≤ M * r⁻¹ := by simpa [hrr] using hbound'
+  -- normalize the RHS into the stated `r⁻¹ * M` form
+  simpa [mul_comm] using this
+
+/-- If `s = σ + it` with `σ ≥ σ0 > 0` and `r = σ0/2`, then the entire closed ball `closedBall s r`
+lies in the right half-plane `{z | 0 < re z}`. -/
+lemma closedBall_subset_halfplane_of_re_ge
+    {σ0 σ t : ℝ} (hσ0 : 0 < σ0) (hσ : σ0 ≤ σ) :
+    closedBall (σ + t * I) (σ0 / 2) ⊆ {z : ℂ | 0 < z.re} := by
+  intro z hz
+  -- |Re(z - s)| ≤ ‖z - s‖ ≤ r ⇒ Re z ≥ Re s - r ≥ σ0 - σ0/2 = σ0/2 > 0
+  have hz' : ‖z - (σ + t * I)‖ ≤ σ0 / 2 := by
+    simpa [dist_eq_norm] using hz
+  have hre : (z - (σ + t * I)).re ≥ -‖z - (σ + t * I)‖ := by
+    -- |Re w| ≤ ‖w‖ ⇒ -‖w‖ ≤ Re w
+    have := (abs_re_le_norm (z - (σ + t * I)))
+    have : |(z - (σ + t * I)).re| ≤ ‖z - (σ + t * I)‖ := this
+    exact neg_le_of_abs_le this
+  have : z.re ≥ σ - σ0 / 2 := by
+    -- z.re ≥ (σ+tI).re - ‖z-(σ+tI)‖
+    have h1 : z.re ≥ (σ + t * I).re - ‖z - (σ + t * I)‖ := by
+      have := add_le_add_right hre ((σ + t * I).re)
+      simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using this
+    -- (σ+tI).re - σ0/2 ≤ (σ+tI).re - ‖z-(σ+tI)‖
+    have h2 : (σ + t * I).re - (σ0 / 2) ≤ (σ + t * I).re - ‖z - (σ + t * I)‖ := by
+      have hneg := neg_le_neg hz'
+      linarith
+    -- combine
+    have hzre_ge : (σ + t * I).re - (σ0 / 2) ≤ z.re := le_trans h2 (h1)
+    simp only [add_re, ofReal_re, mul_re, ofReal_im, I_re, mul_zero, I_im, mul_one, sub_zero] at hzre_ge
+    linarith
+  have : 0 < z.re := by
+    have hσpos : 0 < σ - σ0 / 2 := by linarith
+    exact lt_of_lt_of_le hσpos (by simpa [ge_iff_le] using this)
+  simpa using this
+
+/-! ### Explicit bounds for `Gammaℝ` on circles and strips -/
+
+/-- A uniform circle bound for `Γ_ℝ(z) = π^{-z/2} Γ(z/2)` over the strip:
+on each circle of radius `σ0/2` centered at `σ+it` with `σ ∈ [σ0,1]`, we have
+`‖Gammaℝ z‖ ≤ π^{-(σ0/4)} * (4/σ0 + √π)`. -/
+def circleBound (σ0 : ℝ) : ℝ := Real.rpow Real.pi (-(σ0 / 4)) * (4 / σ0 + Real.sqrt Real.pi)
+
+lemma norm_H_on_sphere_le
+    {σ0 σ t : ℝ} (hσ0 : (1 / 2 : ℝ) < σ0) (hlo : σ0 ≤ σ) (hhi : σ ≤ 1) :
+    ∀ z ∈ sphere (σ + t * I) (σ0 / 2), ‖Gammaℝ z‖ ≤ circleBound σ0 := by
+  intro z hz
+  -- Re z ≥ σ - σ0/2 ≥ σ0/2
+  have hz' : ‖z - (σ + t * I)‖ ≤ σ0 / 2 := by simpa [dist_eq_norm] using (mem_sphere.mp hz).le
+  have h_re : (σ0 / 2) ≤ z.re := by
+    -- z.re ≥ (σ+tI).re - ‖z-(σ+tI)‖ ≥ σ - σ0/2
+    have hre : (z - (σ + t * I)).re ≥ -‖z - (σ + t * I)‖ := by
+      have := (abs_re_le_norm (z - (σ + t * I)))
+      exact (neg_le_of_abs_le this)
+    have h1 : z.re ≥ (σ + t * I).re - ‖z - (σ + t * I)‖ := by
+      have := add_le_add_right hre ((σ + t * I).re)
+      simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using this
+    have h2 : (σ + t * I).re - σ0 / 2 ≤ (σ + t * I).re - ‖z - (σ + t * I)‖ := by
+      have := neg_le_neg hz'
+      linarith
+    have : (σ + t * I).re - σ0 / 2 ≤ z.re := le_trans h2 h1
+    have : σ - σ0 / 2 ≤ z.re := by simpa [sub_eq_add_neg] using this
+    exact (le_trans (by have := hlo; linarith) this)
+  have hπ : ‖(π : ℂ) ^ (-(z / 2))‖ ≤ Real.rpow Real.pi (-(σ0 / 4)) := by
+    have : Real.rpow Real.pi (-(z.re / 2)) ≤ Real.rpow Real.pi (-(σ0 / 4)) := by
+      have : (σ0 / 2) ≤ z.re := h_re
+      have h_exp : -(z.re / 2) ≤ -(σ0 / 4) := by
+        have : σ0 / 4 ≤ z.re / 2 := by linarith [h_re]
+        linarith
+      have hpi : (1 : ℝ) < Real.pi := by
+        have : (3 : ℝ) < Real.pi := Real.pi_gt_three
+        linarith
+      have hpow :
+          Real.rpow Real.pi (-(z.re / 2)) ≤ Real.rpow Real.pi (-(σ0 / 4)) :=
+        Real.rpow_le_rpow_of_exponent_le hpi.le h_exp
+      exact hpow
+    calc ‖(π : ℂ) ^ (-(z / 2))‖
+        = Real.pi ^ (-(z / 2)).re := Complex.norm_cpow_eq_rpow_re_of_pos Real.pi_pos _
+      _ = Real.pi ^ (-(z.re / 2)) := by simp [Complex.neg_re]
+      _ ≤ Real.pi ^ (-(σ0 / 4)) := this
+  let w := z / 2
+  have hw_re : (σ0 / 4) ≤ w.re := by
+    have : (σ0 / 2) ≤ z.re := h_re
+    simpa [w, Complex.div_re] using
+      (le_div_iff₀ (by norm_num : (0 : ℝ) < 2)).mpr (by linarith)
+  have hw_ub : w.re ≤ 1 := by
+    have h_z_ub : z.re ≤ σ + σ0 / 2 := by
+      have : |z.re - σ| ≤ σ0 / 2 := by
+        have := (abs_re_le_norm (z - (σ + t * I))).trans hz'
+        simpa [Complex.sub_re, Complex.add_re, Complex.ofReal_re,
+                Complex.mul_re, Complex.I_re, mul_zero, add_zero] using this
+      linarith [(abs_sub_le_iff.mp this).left]
+    have : z.re ≤ 3/2 := by
+      calc z.re
+          ≤ σ + σ0 / 2 := h_z_ub
+        _ ≤ 1 + 1 / 2 := by linarith [hhi, hσ0]
+        _ = 3 / 2 := by norm_num
+    calc w.re
+        = z.re / 2 := by simp [w]
+      _ ≤ (3 / 2) / 2 := by
+            exact div_le_div_of_nonneg_right this (by norm_num)
+      _ = 3 / 4 := by norm_num
+      _ ≤ 1 := by norm_num
+  have hΓ : ‖Complex.Gamma w‖ ≤ 4 / σ0 + Real.sqrt Real.pi := by
+    have ha : 0 < σ0 / 4 := by linarith [hσ0]
+    calc ‖Complex.Gamma w‖
+        ≤ 1 / (σ0 / 4) + Real.sqrt Real.pi :=
+          norm_Complex_Gamma_le_of_re_ge ha hw_re hw_ub
+      _ = 4 / σ0 + Real.sqrt Real.pi := by ring
+  have : ‖Gammaℝ z‖ ≤ Real.rpow Real.pi (-(σ0 / 4)) * (4 / σ0 + Real.sqrt Real.pi) := by
+    calc ‖Gammaℝ z‖
+      _ = ‖(π : ℂ) ^ (-z / 2) * Complex.Gamma (z / 2)‖ := by rw [Complex.Gammaℝ_def]
+      _ = ‖(π : ℂ) ^ (-z / 2)‖ * ‖Complex.Gamma (z / 2)‖ := Complex.norm_mul _ _
+      _ = ‖(π : ℂ) ^ (-z / 2)‖ * ‖Complex.Gamma w‖ := by rw [show z / 2 = w from rfl]
+      _ ≤ Real.rpow Real.pi (-(σ0 / 4)) * ‖Complex.Gamma w‖ := by
+        have : (π : ℂ) ^ (-z / 2) = (π : ℂ) ^ (-(z / 2)) := by ring_nf
+        rw [this]
+        exact mul_le_mul_of_nonneg_right hπ (norm_nonneg _)
+      _ ≤ Real.rpow Real.pi (-(σ0 / 4)) * (4 / σ0 + Real.sqrt Real.pi) :=
+        mul_le_mul_of_nonneg_left hΓ (Real.rpow_nonneg Real.pi_pos.le _)
+  simpa [circleBound] using this
+
+end Gammaℝ
+end Complex
+end
+
 
 end
 
