@@ -261,7 +261,8 @@ The left-hand side is formulated to mimic the usual informal description of the 
 See also `factorial_isEquivalent_stirling` which says these are asymptotically equivalent. That
 statement gives an upper bound also, but requires sufficiently large `n`. In contrast, this one is
 only a lower bound, but holds for all `n`.
-Sharper bounds due to Robbins are available, but are not yet formalised.
+Sharper bounds due to Robbins are available in
+`Mathlib/Analysis/SpecialFunctions/StirlingRobbins.lean`.
 -/
 theorem le_factorial_stirling (n : ℕ) : √(2 * π * n) * (n / exp 1) ^ n ≤ n ! := by
   obtain rfl | hn := eq_or_ne n 0
@@ -277,7 +278,8 @@ The left-hand side is formulated in decreasing order in `n`: the higher order te
 This is a consequence of `le_factorial_stirling`, but is stated separately since the logarithmic
 version is sometimes more practical, and having this version eases algebraic calculations for
 applications.
-Sharper bounds due to Robbins are available, but are not yet formalised. These would add
+Sharper bounds due to Robbins are available in
+`Mathlib/Analysis/SpecialFunctions/StirlingRobbins.lean`. These add
 lower order terms (beginning with `(12 * n)⁻¹`) to the left-hand side.
 -/
 theorem le_log_factorial_stirling {n : ℕ} (hn : n ≠ 0) :
