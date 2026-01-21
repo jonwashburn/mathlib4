@@ -49,7 +49,6 @@ lemma Gamma_le_Gamma_one_half {a : ℝ} (ha_low : 1 / 2 ≤ a) (ha_high : a ≤ 
         have h1t : 0 ≤ 1 - t := sub_nonneg.2 ht_le_one
         have hmul : (1 - t) * 1 ≤ (1 - t) * Real.Gamma (1 / 2) := by
           simpa [one_mul] using mul_le_mul_of_nonneg_left h_one_le_half h1t
-        -- `add_le_add_right` produces the terms in the opposite order; normalize via commutativity.
         have h' :=
           add_le_add_right hmul (t * Real.Gamma (1 / 2))
         simpa [add_comm, add_left_comm, add_assoc] using h'
@@ -182,7 +181,6 @@ lemma norm_Complex_Gamma_le_of_re_ge' {w : ℂ} {a : ℝ}
                               (Ioi 1) :=
       (Real.GammaIntegral_convergent hw_pos).mono_set
         (fun t ht => mem_Ioi.mpr (lt_trans zero_lt_one ht))
-    -- use additivity of the set integral
     simpa [Ioc_union_Ioi_eq_Ioi zero_le_one] using
       (MeasureTheory.setIntegral_union
           (Ioc_disjoint_Ioi_same (a := (0 : ℝ)) (b := 1))
@@ -213,7 +211,9 @@ lemma norm_Complex_Gamma_le_of_re_ge' {w : ℂ} {a : ℝ}
           (μ := volume) (a := 0) (b := 1) zero_le_one).1 hInt
   have h_drop_exp :
       (∫ t in Ioc 0 1, Real.exp (-t) * t ^ (w.re - 1))
-        ≤ ∫ t in Ioc 0 1, t ^ (w.re - 1) := MeasureTheory.setIntegral_mono_ae_restrict hIoc₁ hIoc₂ h_ae
+        ≤ ∫ t in Ioc 0 1, t ^ (w.re - 1) := by
+          exact
+            MeasureTheory.setIntegral_mono_ae_restrict hIoc₁ hIoc₂ h_ae
   have h_Ioc_exact :
       ∫ t in Ioc 0 1, t ^ (w.re - 1) = 1 / w.re :=
     integral_rpow_Ioc_zero_one hw_pos
@@ -434,7 +434,6 @@ lemma integral_rpow_zero_one_eq {a : ℝ} (ha : 0 < a) :
 lemma integral_exp_neg_Ioi_one :
     ∫ t in Set.Ioi (1 : ℝ), Real.exp (-t) = Real.exp (-1) := by
   have h_int : IntegrableOn (fun t => Real.exp (-t)) (Set.Ioi 1) := integrableOn_exp_neg_Ioi 1
-  -- Use the antiderivative -exp(-t)
   have h_cont : ContinuousWithinAt (fun x => -Real.exp (-x)) (Set.Ici 1) 1 := by
     apply ContinuousAt.continuousWithinAt
     exact (Real.continuous_exp.comp continuous_neg).neg.continuousAt
@@ -454,8 +453,6 @@ lemma integral_exp_neg_Ioi_one :
 
 /-- `e^{-1} < √π`. -/
 lemma exp_neg_one_lt_sqrt_pi : Real.exp (-1) < Real.sqrt Real.pi := by
-  -- e^{-1} ≈ 0.368, √π ≈ 1.772
-  -- We'll show e^{-1} < 1 < √π
   have h1 : Real.exp (-1) < 1 := by
     have : Real.exp 0 = 1 := Real.exp_zero
     have hlt : (-1 : ℝ) < 0 := by norm_num
@@ -515,7 +512,6 @@ open Complex Real Set Metric
 lemma differentiableOn_halfplane :
     DifferentiableOn ℂ Gammaℝ {s : ℂ | 0 < s.re} := by
   intro s hs
-  -- Factorization: Γ_ℝ(s) = Γ_ℝ(s') * ∏(s-k) where s' is in (0,1]
   have h_cpow : DifferentiableAt ℂ (fun z : ℂ => (π : ℂ) ^ (-z / 2)) s := by
     refine ((differentiableAt_id.neg.div_const (2 : ℂ)).const_cpow ?_)
     exact Or.inl (ofReal_ne_zero.mpr pi_ne_zero)
@@ -610,7 +606,6 @@ theorem deriv_bound_on_circle
         simp [this]
       _ = M * r⁻¹ := by simp [one_div, mul_comm]
   have : ‖deriv Gammaℝ s‖ ≤ M * r⁻¹ := by simpa [hrr] using hbound'
-  -- normalize the RHS into the stated `r⁻¹ * M` form
   simpa [mul_comm] using this
 
 /-- If `s = σ + it` with `σ ≥ σ0 > 0` and `r = σ0/2`, then the entire closed ball `closedBall s r`
@@ -619,26 +614,22 @@ lemma closedBall_subset_halfplane_of_re_ge
     {σ0 σ t : ℝ} (hσ0 : 0 < σ0) (hσ : σ0 ≤ σ) :
     closedBall (σ + t * I) (σ0 / 2) ⊆ {z : ℂ | 0 < z.re} := by
   intro z hz
-  -- |Re(z - s)| ≤ ‖z - s‖ ≤ r ⇒ Re z ≥ Re s - r ≥ σ0 - σ0/2 = σ0/2 > 0
   have hz' : ‖z - (σ + t * I)‖ ≤ σ0 / 2 := by
     simpa [dist_eq_norm] using hz
   have hre : (z - (σ + t * I)).re ≥ -‖z - (σ + t * I)‖ := by
-    -- |Re w| ≤ ‖w‖ ⇒ -‖w‖ ≤ Re w
     have := (abs_re_le_norm (z - (σ + t * I)))
     have : |(z - (σ + t * I)).re| ≤ ‖z - (σ + t * I)‖ := this
     exact neg_le_of_abs_le this
   have : z.re ≥ σ - σ0 / 2 := by
-    -- z.re ≥ (σ+tI).re - ‖z-(σ+tI)‖
     have h1 : z.re ≥ (σ + t * I).re - ‖z - (σ + t * I)‖ := by
       have := add_le_add_right hre ((σ + t * I).re)
       simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using this
-    -- (σ+tI).re - σ0/2 ≤ (σ+tI).re - ‖z-(σ+tI)‖
     have h2 : (σ + t * I).re - (σ0 / 2) ≤ (σ + t * I).re - ‖z - (σ + t * I)‖ := by
       have hneg := neg_le_neg hz'
       linarith
-    -- combine
     have hzre_ge : (σ + t * I).re - (σ0 / 2) ≤ z.re := le_trans h2 (h1)
-    simp only [add_re, ofReal_re, mul_re, ofReal_im, I_re, mul_zero, I_im, mul_one, sub_zero] at hzre_ge
+    simp only [add_re, ofReal_re, mul_re, ofReal_im, I_re, mul_zero, I_im, mul_one,
+      sub_zero] at hzre_ge
     linarith
   have : 0 < z.re := by
     have hσpos : 0 < σ - σ0 / 2 := by linarith
@@ -731,11 +722,5 @@ lemma norm_H_on_sphere_le
         mul_le_mul_of_nonneg_left hΓ (Real.rpow_nonneg Real.pi_pos.le _)
   simpa [circleBound] using this
 
-end Gammaℝ
-end Complex
 end
-
-
-end
-
 end Complex.Gammaℝ
