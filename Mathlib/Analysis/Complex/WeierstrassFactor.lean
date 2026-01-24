@@ -84,12 +84,6 @@ lemma neg_norm_le_re (w : ℂ) : (-‖w‖ : ℝ) ≤ w.re := by
   have habs : |w.re| ≤ ‖w‖ := Complex.abs_re_le_norm w
   simpa using (neg_le_of_abs_le habs)
 
-/-- A simp-bridge between `((m+1+k : ℕ) : ℂ)` and `↑m + 1 + ↑k`. -/
-@[simp]
-lemma natCast_add_one_add (m k : ℕ) :
-    ((m + 1 + k : ℕ) : ℂ) = (↑m + (1 : ℂ) + ↑k) := by
-  simp [Nat.cast_add, Nat.cast_one, add_left_comm, add_comm]
-
 private lemma one_le_norm_natCast_add_one_add (m k : ℕ) :
     (1 : ℝ) ≤ ‖((m + 1 + k : ℕ) : ℂ)‖ := by
   have h1 : (1 : ℝ) ≤ (m + 1 + k : ℝ) := by
@@ -100,6 +94,21 @@ private lemma one_le_norm_natCast_add_one_add (m k : ℕ) :
   rw [hn]
   exact h1
 
+-- Small helper: dropping the nat denominator only increases the norm.
+private lemma norm_pow_succ_div_le (z : ℂ) (k : ℕ) :
+    ‖z ^ (k + 1) / (k + 1)‖ ≤ ‖z‖ ^ (k + 1) := by
+  -- `‖a / b‖ = ‖a‖ / ‖b‖`, and `‖b‖ ≥ 1`
+  rw [norm_div, norm_pow]
+  have hk1 : (1 : ℝ) ≤ ‖(k + 1 : ℂ)‖ := by
+    have hk1' : (1 : ℝ) ≤ (k + 1 : ℝ) := by
+      exact_mod_cast (Nat.succ_le_succ (Nat.zero_le k))
+    have hdenom : ‖(k + 1 : ℂ)‖ = (k + 1 : ℝ) := by
+      simpa using (Complex.norm_natCast (k + 1))
+    simp [hdenom]
+  have hdenom : ‖(k + 1 : ℂ)‖ = (k + 1 : ℝ) := by
+    simpa using (Complex.norm_natCast (k + 1))
+  simpa [hdenom] using (div_le_self (pow_nonneg (norm_nonneg z) _) hk1)
+
 /-- A crude bound on `‖partialLogSum m z‖` used in minimum-modulus arguments. -/
 lemma norm_partialLogSum_le (m : ℕ) (z : ℂ) :
     ‖partialLogSum m z‖ ≤ (m : ℝ) * max 1 (‖z‖ ^ m) := by
@@ -109,7 +118,6 @@ lemma norm_partialLogSum_le (m : ℕ) (z : ℂ) :
       (norm_sum_le (Finset.range m) (fun k => z ^ (k + 1) / (k + 1)))
   have hterm : ∀ k ∈ Finset.range m, ‖z ^ (k + 1) / (k + 1)‖ ≤ max 1 (‖z‖ ^ m) := by
     intro k hk
-    rw [norm_div, norm_pow]
     have hk_le : k + 1 ≤ m := Nat.succ_le_iff.2 (Finset.mem_range.1 hk)
     have hpow_le : ‖z‖ ^ (k + 1) ≤ max 1 (‖z‖ ^ m) := by
       have hz0 : 0 ≤ ‖z‖ := norm_nonneg z
@@ -119,15 +127,7 @@ lemma norm_partialLogSum_le (m : ℕ) (z : ℂ) :
       · have hz1' : (1 : ℝ) ≤ ‖z‖ := le_of_lt (lt_of_not_ge hz1)
         have : ‖z‖ ^ (k + 1) ≤ ‖z‖ ^ m := pow_le_pow_right₀ hz1' hk_le
         exact this.trans (le_max_right _ _)
-    calc
-      ‖z‖ ^ (k + 1) / ‖(k + 1 : ℂ)‖
-          ≤ ‖z‖ ^ (k + 1) := by
-                have hdenom : ‖(k + 1 : ℂ)‖ = (k + 1 : ℝ) := by
-                  simpa using (Complex.norm_natCast (k + 1))
-                have hk1' : (1 : ℝ) ≤ (k + 1 : ℝ) := by
-                  exact_mod_cast (Nat.succ_le_succ (Nat.zero_le k))
-                simpa [hdenom] using (div_le_self (pow_nonneg (norm_nonneg z) _) hk1')
-      _ ≤ max 1 (‖z‖ ^ m) := hpow_le
+    exact (norm_pow_succ_div_le z k).trans hpow_le
   have hsum_le :
       (∑ k ∈ Finset.range m, ‖z ^ (k + 1) / (k + 1)‖) ≤
         ∑ _k ∈ Finset.range m, max 1 (‖z‖ ^ m) :=
@@ -159,7 +159,6 @@ lemma summable_logTail {z : ℂ} (hz : ‖z‖ < 1) (m : ℕ) :
 /-! A head/tail decomposition for `logTail` on `‖z‖ < 1`. -/
 lemma logTail_eq_add_logTail_succ {z : ℂ} (hz : ‖z‖ < 1) (m : ℕ) :
     logTail m z = z ^ (m + 1) / (m + 1) + logTail (m + 1) z := by
-  classical
   let g : ℕ → ℂ := fun k => z ^ (m + 1 + k) / ((m + 1 + k : ℕ) : ℂ)
   have hg : Summable g := by
     simpa [g, div_eq_mul_inv] using (summable_logTail (z := z) hz m)
@@ -204,13 +203,7 @@ lemma norm_logTail_le {z : ℂ} (hz : ‖z‖ < 1) (m : ℕ) :
           refine h_summable.norm.tsum_le_tsum ?_ h_rhs_summable
           intro k
           rw [norm_div, norm_pow]
-          have hm_nat : (1 : ℕ) ≤ m + 1 + k := by
-            have : (1 : ℕ) ≤ (m + k) + 1 := Nat.succ_le_succ (Nat.zero_le (m + k))
-            simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using this
-          have hm : (1 : ℝ) ≤ (m + 1 + k : ℝ) := by exact_mod_cast hm_nat
-          have hdenom : (1 : ℝ) ≤ ‖((m + 1 + k : ℕ) : ℂ)‖ :=
-            one_le_norm_natCast_add_one_add m k
-          exact div_le_self (pow_nonneg (norm_nonneg z) _) hdenom
+          exact div_le_self (pow_nonneg (norm_nonneg z) _) (one_le_norm_natCast_add_one_add m k)
     _ = ‖z‖ ^ (m + 1) / (1 - ‖z‖) := by
           have h_eq : (fun k => ‖z‖ ^ (m + 1 + k)) = (fun k => ‖z‖ ^ (m + 1) * ‖z‖ ^ k) := by
             ext k; rw [pow_add]
