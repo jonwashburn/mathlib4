@@ -307,4 +307,42 @@ lemma log_norm_weierstrassFactor_ge_log_norm_one_sub_sub (m : ℕ) (z : ℂ) :
     linarith [hlog, hre]
   linarith [this, hnormS]
 
+private lemma norm_div_le_one_half_of_le
+    {R : ℝ} {z a : ℂ} (hRpos : 0 < R) (hz : ‖z‖ ≤ R) (ha : (2 * R : ℝ) ≤ ‖a‖) :
+    ‖z / a‖ ≤ (1 / 2 : ℝ) := by
+  have hR_nonneg : 0 ≤ R := le_of_lt hRpos
+  have h2Rpos : 0 < (2 * R : ℝ) := by nlinarith
+  have hinv : (1 / ‖a‖) ≤ 1 / (2 * R) :=
+    one_div_le_one_div_of_le h2Rpos ha
+  have : ‖z‖ / ‖a‖ ≤ R / (2 * R) := by
+    calc
+      ‖z‖ / ‖a‖ = ‖z‖ * (1 / ‖a‖) := by simp [div_eq_mul_inv]
+      _ ≤ R * (1 / ‖a‖) := by gcongr
+      _ ≤ R * (1 / (2 * R)) := by
+            exact mul_le_mul_of_nonneg_left hinv hR_nonneg
+      _ = R / (2 * R) := by simp [div_eq_mul_inv]
+  have hfrac : R / (2 * R) = (1 / 2 : ℝ) := by
+    field_simp [ne_of_gt hRpos]
+  simpa [norm_div, hfrac] using this
+
+lemma norm_weierstrassFactor_div_sub_one_le
+    {m : ℕ} {R : ℝ} {z a : ℂ} (hRpos : 0 < R) (hz : ‖z‖ ≤ R) (ha : (2 * R : ℝ) ≤ ‖a‖) :
+    ‖weierstrassFactor m (z / a) - 1‖ ≤ 4 * (R ^ (m + 1)) * (‖a‖⁻¹ ^ (m + 1)) := by
+  have hz_div : ‖z / a‖ ≤ (1 / 2 : ℝ) :=
+    norm_div_le_one_half_of_le (z := z) (a := a) hRpos hz ha
+  have hE :
+      ‖weierstrassFactor m (z / a) - 1‖ ≤ 4 * ‖z / a‖ ^ (m + 1) :=
+    weierstrassFactor_sub_one_pow_bound (m := m) (z := z / a) hz_div
+  have hz_le : ‖z / a‖ ≤ R * ‖a‖⁻¹ := by
+    calc
+      ‖z / a‖ = ‖z‖ / ‖a‖ := by simp
+      _ = ‖z‖ * ‖a‖⁻¹ := by simp [div_eq_mul_inv]
+      _ ≤ R * ‖a‖⁻¹ := by gcongr
+  have hz_pow :
+      ‖z / a‖ ^ (m + 1) ≤ (R ^ (m + 1)) * (‖a‖⁻¹ ^ (m + 1)) := by
+    have hz_pow' : ‖z / a‖ ^ (m + 1) ≤ (R * ‖a‖⁻¹) ^ (m + 1) :=
+      pow_le_pow_left₀ (by positivity) hz_le (m + 1)
+    simpa [mul_pow] using hz_pow'
+  nlinarith [hE, hz_pow]
+
 end Complex
