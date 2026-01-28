@@ -108,12 +108,6 @@ theorem canonicalProduct_converges_uniformOn_compact
   have hR1pos : 0 < R + 1 := by
     have : (1 : ℝ) ≤ R := le_max_right R0 1
     linarith
-  let U : Set ℂ := Metric.ball (0 : ℂ) (R + 1)
-  have hKU : K ⊆ U := by
-    intro z hzK
-    have hzle : ‖z‖ ≤ R := le_trans (hR0 z hzK) (le_max_left _ _)
-    have hzlt : ‖z‖ < R + 1 := lt_of_le_of_lt hzle (by linarith)
-    simpa [U, Metric.mem_ball, dist_zero_right] using hzlt
   let f : ℕ → ℂ → ℂ := fun n z => weierstrassFactor m (z / a n) - 1
   let u : ℕ → ℝ := fun n => (4 * (R + 1) ^ (m + 1)) * (‖a n‖⁻¹ ^ (m + 1))
   have hu : Summable u := h_sum.mul_left (4 * (R + 1) ^ (m + 1))
@@ -123,10 +117,8 @@ theorem canonicalProduct_converges_uniformOn_compact
         (p := m + 1) (a := a) h_sum h_nonzero hR1pos
   have hBoundK : ∀ᶠ n in atTop, ∀ z ∈ K, ‖f n z‖ ≤ u n := by
     filter_upwards [hLarge] with n hn z hzK
-    have hzU' : ‖z‖ < R + 1 := by
-      have : z ∈ U := hKU hzK
-      simpa [U, Metric.mem_ball, dist_zero_right] using this
-    have hzle : ‖z‖ ≤ R + 1 := le_of_lt hzU'
+    have hzle' : ‖z‖ ≤ R := le_trans (hR0 z hzK) (le_max_left _ _)
+    have hzle : ‖z‖ ≤ R + 1 := le_trans hzle' (le_of_lt (by linarith))
     have hW :
         ‖weierstrassFactor m (z / a n) - 1‖ ≤ 4 * ((R + 1) ^ (m + 1)) * (‖a n‖⁻¹ ^ (m + 1)) := by
       simpa [mul_assoc, mul_left_comm, mul_comm] using
@@ -135,10 +127,9 @@ theorem canonicalProduct_converges_uniformOn_compact
     simpa [f, u, mul_assoc, mul_left_comm, mul_comm] using hW
   have hcts : ∀ n, ContinuousOn (f n) K := by
     intro n
-    have hdiv : Continuous fun z : ℂ => z / a n := by
-      simpa [div_eq_mul_inv] using (continuous_id.mul continuous_const)
-    have hcont : Continuous (fun z : ℂ => weierstrassFactor m (z / a n)) :=
-      (continuous_weierstrassFactor m).comp hdiv
+    have hcont : Continuous fun z : ℂ => weierstrassFactor m (z / a n) :=
+      (continuous_weierstrassFactor m).comp (by
+        simpa [div_eq_mul_inv] using (continuous_id.mul continuous_const))
     simpa [f] using hcont.continuousOn.sub continuous_const.continuousOn
   have hprodK :
       HasProdUniformlyOn (fun n z ↦ 1 + f n z) (fun z ↦ ∏' n, (1 + f n z)) K := by
