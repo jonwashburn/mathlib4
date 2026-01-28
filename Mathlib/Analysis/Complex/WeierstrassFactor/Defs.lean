@@ -7,7 +7,10 @@ module
 
 public import Mathlib.Analysis.SpecialFunctions.Complex.Log
 public import Mathlib.Topology.Algebra.InfiniteSum.Basic
-
+public import Mathlib.Analysis.Calculus.FDeriv.Pow
+public import Mathlib.Analysis.Calculus.FDeriv.Add
+public import Mathlib.Analysis.Calculus.Deriv.Mul
+public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 /-!
 # Weierstrass elementary factors
 
@@ -54,6 +57,15 @@ lemma partialLogSum_one (z : ℂ) : partialLogSum 1 z = z := by
 lemma partialLogSum_succ (m : ℕ) (z : ℂ) :
     partialLogSum (m + 1) z = partialLogSum m z + z ^ (m + 1) / (m + 1) := by
   simp [partialLogSum, Finset.sum_range_succ]
+
+lemma differentiable_partialLogSum (m : ℕ) :
+    Differentiable ℂ (fun z : ℂ => partialLogSum m z) := by
+  have h : ∀ k ∈ Finset.range m,
+        Differentiable ℂ (fun z : ℂ => z ^ (k + 1) * ((k + 1 : ℂ)⁻¹)) := by
+    intro k hk; simp
+  simpa [partialLogSum, div_eq_mul_inv] using
+    (Differentiable.fun_sum (𝕜 := ℂ) (u := Finset.range m) (A := fun k z =>
+      z ^ (k + 1) * ((k + 1 : ℂ)⁻¹)) h)
 
 /-- The tail `∑_{k>m} z^k / k`, written as `∑' k, z^(m+1+k)/(m+1+k)`. -/
 def logTail (m : ℕ) (z : ℂ) : ℂ :=
@@ -110,5 +122,14 @@ lemma continuous_weierstrassFactor (m : ℕ) : Continuous fun z : ℂ => weierst
   have hpartial : Continuous fun z : ℂ => partialLogSum m z := continuous_partialLogSum m
   simpa [weierstrassFactor] using
     (continuous_const.sub continuous_id).mul (Complex.continuous_exp.comp hpartial)
+
+lemma differentiable_weierstrassFactor (m : ℕ) :
+    Differentiable ℂ (fun z : ℂ => weierstrassFactor m z) := by
+  have hsub : Differentiable ℂ (fun z : ℂ => (1 : ℂ) - z) :=
+    (differentiable_const (c := (1 : ℂ)) : Differentiable ℂ (fun _ : ℂ => (1 : ℂ)))
+      |>.sub differentiable_id
+  have hexp : Differentiable ℂ (fun z : ℂ => exp (partialLogSum m z)) :=
+    differentiable_exp.comp (differentiable_partialLogSum m)
+  simpa [weierstrassFactor] using hsub.mul hexp
 
 end Complex
