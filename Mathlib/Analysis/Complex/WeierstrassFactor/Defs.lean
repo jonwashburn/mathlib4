@@ -97,4 +97,18 @@ lemma weierstrassFactor_ne_zero_iff (m : ℕ) (z : ℂ) :
     weierstrassFactor m z ≠ 0 ↔ z ≠ 1 := by
   simpa using (not_congr (weierstrassFactor_eq_zero_iff m z))
 
+/-- The partial sum `partialLogSum m` is continuous. -/
+lemma continuous_partialLogSum (m : ℕ) : Continuous fun z : ℂ => partialLogSum m z := by
+  classical
+  unfold partialLogSum
+  simpa using
+    (continuous_finset_sum (Finset.range m) fun k _ => by
+      continuity)
+
+/-- The Weierstrass factor is continuous. -/
+lemma continuous_weierstrassFactor (m : ℕ) : Continuous fun z : ℂ => weierstrassFactor m z := by
+  have hpartial : Continuous fun z : ℂ => partialLogSum m z := continuous_partialLogSum m
+  simpa [weierstrassFactor] using
+    (continuous_const.sub continuous_id).mul (Complex.continuous_exp.comp hpartial)
+
 end Complex
