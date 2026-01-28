@@ -1,10 +1,9 @@
 /-
 Copyright (c) 2026 Jonathan Washburn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Matteo Cipollina, Jonathan Washburn
 -/
 
-import Mathlib.Analysis.SpecialFunctions.Gamma.Binet.Integral
+import Mathlib.Analysis.SpecialFunctions.Gamma.Binet.Kernel
 import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
 
 /-!
