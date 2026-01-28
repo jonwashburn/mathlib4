@@ -1,6 +1,7 @@
 /-
 Copyright (c) 2026 Jonathan Washburn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Matteo Cipollina
 -/
 
 import Mathlib.Analysis.SpecialFunctions.Gamma.Binet.Kernel
@@ -11,6 +12,13 @@ import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
 
 This file proves basic boundedness and integrability statements for the normalized Binet kernel
 `Binet.Ktilde`, used in Binet's integral representation of `log Γ`.
+
+## Main results
+
+- `Binet.Ktilde_bdd`: `Ktilde` is bounded on `[0, ∞)`.
+- `Binet.integrable_Ktilde_exp`: integrability of `t ↦ Ktilde t * exp (-t * x)` on `(0,∞)` for `x > 0`.
+- `Binet.integrable_Ktilde_exp_complex`: integrability of `t ↦ (Ktilde t : ℂ) * exp (-t * z)` on `(0,∞)`
+  for `0 < re z`.
 
 ## Tags
 
@@ -29,8 +37,7 @@ namespace Binet
 lemma Ktilde_bdd : ∃ C : ℝ, ∀ t : ℝ, 0 ≤ t → ‖Ktilde t‖ ≤ C := by
   refine ⟨(1 / 12 : ℝ), ?_⟩
   intro t ht
-  rw [Real.norm_eq_abs, abs_of_nonneg (Ktilde_nonneg ht)]
-  exact Ktilde_le ht
+  simpa [Real.norm_eq_abs, abs_of_nonneg (Ktilde_nonneg ht)] using Ktilde_le ht
 
 /-! ## Integrability -/
 
@@ -38,10 +45,10 @@ lemma Ktilde_bdd : ∃ C : ℝ, ∀ t : ℝ, 0 ≤ t → ‖Ktilde t‖ ≤ C :=
 theorem integrable_Ktilde_exp {x : ℝ} (hx : 0 < x) :
     Integrable (fun t : ℝ => Ktilde t * exp (-t * x))
       (Measure.restrict volume (Ioi 0)) := by
-  have h_exp_int : IntegrableOn (fun t : ℝ => exp (-x * t)) (Ioi 0) :=
-    integrableOn_exp_mul_Ioi (neg_neg_of_pos hx) 0
-  have h_exp_int' : IntegrableOn (fun t : ℝ => exp (-t * x)) (Ioi 0) :=
-    h_exp_int.congr_fun (fun t _ => by ring_nf) measurableSet_Ioi
+  have h_exp_int : IntegrableOn (fun t : ℝ => exp (-t * x)) (Ioi 0) := by
+    -- `integrableOn_exp_mul_Ioi` is phrased as `exp (a * t)` with `a < 0`.
+    simpa [mul_assoc, mul_left_comm, mul_comm] using
+      (integrableOn_exp_mul_Ioi (a := (-x : ℝ)) (by simpa using (neg_neg_of_pos hx)) 0)
   obtain ⟨C, hC⟩ := Ktilde_bdd
   have h_meas :
       AEStronglyMeasurable Ktilde (Measure.restrict volume (Ioi 0)) :=
@@ -50,7 +57,7 @@ theorem integrable_Ktilde_exp {x : ℝ} (hx : 0 < x) :
       ∀ᵐ t ∂(Measure.restrict volume (Ioi 0)), ‖Ktilde t‖ ≤ C := by
     filter_upwards [ae_restrict_mem measurableSet_Ioi] with t ht
     exact hC t (le_of_lt ht)
-  exact h_exp_int'.integrable.bdd_mul h_meas h_bdd_ae
+  exact h_exp_int.integrable.bdd_mul h_meas h_bdd_ae
 
 /-- The Binet integral \(\int_0^\infty K̃(t)e^{-tz}\,dt\) converges for \(\Re(z)>0\). -/
 theorem integrable_Ktilde_exp_complex {z : ℂ} (hz : 0 < z.re) :
@@ -60,7 +67,7 @@ theorem integrable_Ktilde_exp_complex {z : ℂ} (hz : 0 < z.re) :
   have h_exp_int : IntegrableOn (fun t : ℝ => Complex.exp ((-z) * t)) (Ioi 0) :=
     integrableOn_exp_mul_complex_Ioi h_neg_re 0
   have h_exp_int' : IntegrableOn (fun t : ℝ => Complex.exp (-t * z)) (Ioi 0) :=
-    h_exp_int.congr_fun (fun t _ => by simp; ring_nf) measurableSet_Ioi
+    h_exp_int.congr_fun (fun t _ => by ring) measurableSet_Ioi
   obtain ⟨C, hC⟩ := Ktilde_bdd
   have h_meas :
       AEStronglyMeasurable (fun t : ℝ => (Ktilde t : ℂ))
