@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2026 Jonathan Washburn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Matteo Cipollina, Jonathan Washburn
+Authors: Matteo Cipollina
 -/
 
 import Mathlib.Analysis.SpecialFunctions.Gamma.Binet.Kernel
@@ -32,9 +32,8 @@ open Internal
 /-- Auxiliary: \((\exp t - 1)/t \to 1\) as \(t \to 0^+\). -/
 private lemma tendsto_exp_sub_one_div :
     Tendsto (fun t => (exp t - 1) / t) (𝓝[>] 0) (𝓝 (1 : ℝ)) := by
-  have h := Real.hasDerivAt_exp 0
-  rw [exp_zero] at h
-  simpa [inv_mul_eq_div, zero_add, smul_eq_mul] using h.tendsto_slope_zero_right
+  simpa [inv_mul_eq_div, zero_add, smul_eq_mul, exp_zero] using
+    (Real.hasDerivAt_exp 0).tendsto_slope_zero_right
 
 /-- The Taylor remainder \(h(t) = \exp(t) - 1 - t - t^2/2\) satisfies \(h(t)/t^3 \to 1/6\)
 as \(t \to 0^+\). -/
@@ -43,22 +42,25 @@ private lemma tendsto_exp_taylor3_div_cube :
   have h_taylor : (fun x =>
           exp x - ∑ i ∈ Finset.range 4, x ^ i / Nat.factorial i) =o[𝓝 0] (· ^ 3) :=
     exp_sub_sum_range_succ_isLittleO_pow 3
-  have h_sum :
-      ∀ x : ℝ, ∑ i ∈ Finset.range 4, x ^ i / Nat.factorial i = 1 + x + x ^ 2 / 2 + x ^ 3 / 6 := by
-    intro x; simp [Finset.sum_range_succ, Nat.factorial]
   have h_decomp : ∀ t : ℝ, exp t - 1 - t - t ^ 2 / 2 =
           (exp t - ∑ i ∈ Finset.range 4, t ^ i / Nat.factorial i) + t ^ 3 / 6 := by
-    intro t; rw [h_sum]; ring
+    intro t
+    simp [Finset.sum_range_succ, Nat.factorial]
+    ring
   have h_zero : Tendsto (fun t =>
           (exp t - ∑ i ∈ Finset.range 4, t ^ i / Nat.factorial i) / t ^ 3) (𝓝[>] 0) (𝓝 0) := by
-    have := h_taylor.tendsto_div_nhds_zero
-    exact tendsto_nhdsWithin_of_tendsto_nhds this
-  have h_add : Tendsto (fun t =>
+    exact tendsto_nhdsWithin_of_tendsto_nhds h_taylor.tendsto_div_nhds_zero
+  have h_add :
+      Tendsto (fun t =>
           (exp t - ∑ i ∈ Finset.range 4, t ^ i / Nat.factorial i) / t ^ 3 + (1 / 6 : ℝ))
         (𝓝[>] 0) (𝓝 (0 + (1 / 6 : ℝ))) :=
     h_zero.add tendsto_const_nhds
-  simp only [zero_add] at h_add
-  refine h_add.congr' ?_
+  have h_add' :
+      Tendsto (fun t =>
+          (exp t - ∑ i ∈ Finset.range 4, t ^ i / Nat.factorial i) / t ^ 3 + (1 / 6 : ℝ))
+        (𝓝[>] 0) (𝓝 (1 / 6 : ℝ)) := by
+    simpa [zero_add] using h_add
+  refine h_add'.congr' ?_
   filter_upwards [self_mem_nhdsWithin] with t ht
   have hne : t ≠ 0 := ne_of_gt ht
   rw [h_decomp]; field_simp [hne]
@@ -70,12 +72,13 @@ private lemma tendsto_kernelNum_div_cube :
   have h1 :
       Tendsto (fun t => (exp t - 1 - t - t ^ 2 / 2) / t ^ 3 * (t - 2)) (𝓝[>] 0)
         (𝓝 ((1 / 6 : ℝ) * (-2))) := by
-    refine (tendsto_exp_taylor3_div_cube.mul ?_)
+    refine tendsto_exp_taylor3_div_cube.mul ?_
     have : Tendsto (fun x : ℝ => x - 2) (𝓝 0) (𝓝 (-2)) := by
-      simpa using ((tendsto_id : Tendsto (fun x : ℝ => x) (𝓝 0) (𝓝 (0 : ℝ))).sub tendsto_const_nhds)
+      simpa using (tendsto_id.sub (tendsto_const_nhds : Tendsto (fun _ : ℝ => (2 : ℝ)) (𝓝 0) (𝓝 2)))
     exact tendsto_nhdsWithin_of_tendsto_nhds this
-  have h2 : Tendsto (fun t => (1 / 2 : ℝ) + (exp t - 1 - t - t ^ 2 / 2) / t ^ 3 * (t - 2))
-        (𝓝[>] 0) (𝓝 ((1 / 2 : ℝ) + (1 / 6 : ℝ) * (-2))) :=
+  have h2 :
+      Tendsto (fun t => (1 / 2 : ℝ) + (exp t - 1 - t - t ^ 2 / 2) / t ^ 3 * (t - 2)) (𝓝[>] 0)
+        (𝓝 ((1 / 2 : ℝ) + (1 / 6 : ℝ) * (-2))) :=
     tendsto_const_nhds.add h1
   have heq : ((1 / 2 : ℝ) + (1 / 6 : ℝ) * (-2)) = (1 / 6 : ℝ) := by norm_num
   rw [← heq]
