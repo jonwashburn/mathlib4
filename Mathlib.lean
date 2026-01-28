@@ -1726,6 +1726,8 @@ public import Mathlib.Analysis.Complex.WeierstrassFactor.CanonicalProduct
 public import Mathlib.Analysis.Complex.WeierstrassFactor.Defs
 public import Mathlib.Analysis.Complex.WeierstrassFactor.Divisor.Convergence
 public import Mathlib.Analysis.Complex.WeierstrassFactor.Divisor.Index
+public import Mathlib.Analysis.Complex.WeierstrassFactor.Divisor.Units
+
 public import Mathlib.Analysis.Complex.WeierstrassFactor.Lemmas
 public import Mathlib.Analysis.ConstantSpeed
 public import Mathlib.Analysis.Convex.AmpleSet
