@@ -2134,7 +2134,7 @@ public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 public import Mathlib.Analysis.SpecialFunctions.Exponential
 public import Mathlib.Analysis.SpecialFunctions.Gamma.Basic
 public import Mathlib.Analysis.SpecialFunctions.Gamma.Binet.Bounds
-public import Mathlib.Analysis.SpecialFunctions.Gamma.Binet.Integral
+public import Mathlib.Analysis.SpecialFunctions.Gamma.Binet.Kernel
 public import Mathlib.Analysis.SpecialFunctions.Gamma.Binet.Integrability
 public import Mathlib.Analysis.SpecialFunctions.Gamma.Binet.Limit
 public import Mathlib.Analysis.SpecialFunctions.Gamma.Beta
