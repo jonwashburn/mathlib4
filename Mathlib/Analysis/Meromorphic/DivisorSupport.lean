@@ -3,9 +3,11 @@ Copyright (c) 2026 Jonathan Washburn. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Matteo Cipollina
 -/
-import Mathlib.Analysis.Meromorphic.Divisor
-import Mathlib.Topology.Compactness.Compact
-import Mathlib.Topology.Compactness.Lindelof
+module
+
+public import Mathlib.Analysis.Meromorphic.Divisor
+public import Mathlib.Topology.Compactness.Compact
+public import Mathlib.Topology.Compactness.Lindelof
 
 /-!
 # Support of the divisor of a meromorphic function
@@ -50,7 +52,6 @@ lemma divisor_support_countable [HereditarilyLindelofSpace 𝕜] (f : 𝕜 → E
 lemma divisor_support_inter_compact_finite (f : 𝕜 → E) {U K : Set 𝕜}
     (hK : IsCompact K) (hKU : K ⊆ U) :
     (K ∩ (divisor f U).support).Finite := by
-  classical
   set D : Function.locallyFinsuppWithin U ℤ := divisor f U
   have hloc : ∀ x ∈ K, ∃ V : Set 𝕜, V ∈ 𝓝 x ∧ Set.Finite (V ∩ D.support) := by
     intro x hxK
