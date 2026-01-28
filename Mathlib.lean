@@ -1728,6 +1728,7 @@ public import Mathlib.Analysis.Complex.WeierstrassFactor.Divisor.Complement
 public import Mathlib.Analysis.Complex.WeierstrassFactor.Divisor.Convergence
 public import Mathlib.Analysis.Complex.WeierstrassFactor.Divisor.Fiber
 public import Mathlib.Analysis.Complex.WeierstrassFactor.Divisor.Index
+public import Mathlib.Analysis.Complex.WeierstrassFactor.Divisor.PartialProductFactor
 public import Mathlib.Analysis.Complex.WeierstrassFactor.Divisor.Units
 public import Mathlib.Analysis.Complex.WeierstrassFactor.Lemmas
 public import Mathlib.Analysis.ConstantSpeed
