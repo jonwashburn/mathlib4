@@ -66,15 +66,13 @@ private lemma eventually_two_mul_le_norm_of_summable_inv_pow
     (h_nonzero : ∀ n, a n ≠ 0)
     {R : ℝ} (hRpos : 0 < R) :
     ∀ᶠ n in atTop, (2 * R : ℝ) ≤ ‖a n‖ := by
-  have h_tend : Tendsto (fun n => ‖a n‖⁻¹ ^ p) atTop (𝓝 (0 : ℝ)) := by
-    simpa [Nat.cofinite_eq_atTop] using h_sum.tendsto_cofinite_zero
-  have hRhalf_pos : 0 < (1 / (2 * R)) ^ p := by
-    have : 0 < (1 / (2 * R) : ℝ) := by
-      have : 0 < (2 * R : ℝ) := by nlinarith
+  have hEv : ∀ᶠ n in atTop, ‖a n‖⁻¹ ^ p < (1 / (2 * R)) ^ p := by
+    have hpos : 0 < (1 / (2 * R) : ℝ) := by
+      have : 0 < (2 * R : ℝ) := by nlinarith [hRpos]
       exact one_div_pos.mpr this
-    exact pow_pos this p
-  have hEv : ∀ᶠ n in atTop, ‖a n‖⁻¹ ^ p < (1 / (2 * R)) ^ p :=
-    h_tend.eventually (eventually_lt_nhds hRhalf_pos)
+    have hpos' : 0 < (1 / (2 * R)) ^ p := pow_pos hpos p
+    simpa [Nat.cofinite_eq_atTop] using
+      (h_sum.tendsto_cofinite_zero).eventually (eventually_lt_nhds hpos')
   filter_upwards [hEv] with n hn
   by_contra h'
   have hle : ‖a n‖ ≤ 2 * R := le_of_not_ge h'
@@ -112,13 +110,13 @@ theorem canonicalProduct_converges_uniformOn_compact
   let u : ℕ → ℝ := fun n => (4 * (R + 1) ^ (m + 1)) * (‖a n‖⁻¹ ^ (m + 1))
   have hu : Summable u := h_sum.mul_left (4 * (R + 1) ^ (m + 1))
   have hLarge : ∀ᶠ n in atTop, (2 * (R + 1) : ℝ) ≤ ‖a n‖ := by
-    exact
-      eventually_two_mul_le_norm_of_summable_inv_pow
-        (p := m + 1) (a := a) h_sum h_nonzero hR1pos
+    simpa using
+      eventually_two_mul_le_norm_of_summable_inv_pow (p := m + 1) (a := a) h_sum h_nonzero hR1pos
   have hBoundK : ∀ᶠ n in atTop, ∀ z ∈ K, ‖f n z‖ ≤ u n := by
     filter_upwards [hLarge] with n hn z hzK
-    have hzle' : ‖z‖ ≤ R := le_trans (hR0 z hzK) (le_max_left _ _)
-    have hzle : ‖z‖ ≤ R + 1 := le_trans hzle' (le_of_lt (by linarith))
+    have hzle : ‖z‖ ≤ R + 1 := by
+      have : ‖z‖ ≤ R := le_trans (hR0 z hzK) (le_max_left _ _)
+      linarith
     have hW :
         ‖weierstrassFactor m (z / a n) - 1‖ ≤ 4 * ((R + 1) ^ (m + 1)) * (‖a n‖⁻¹ ^ (m + 1)) := by
       simpa [mul_assoc, mul_left_comm, mul_comm] using
